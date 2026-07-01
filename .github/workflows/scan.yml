@@ -81,19 +81,17 @@ jobs:
           if not github_token or github_token.startswith('\${'):
               print('Warning: GitHub token not configured')
           else:
-              print('GitHub token configured')
+              print(f'GitHub token configured (length: {len(github_token)})')
           "
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.KEY_LEAK_DETECTOR }}
       
       - name: Run scanner
         run: |
           source venv/bin/activate
-          python main.py scan \
-            --query "${{ inputs.query }}" \
-            --max-results "${{ inputs.max_results || '100' }}"
+          python main.py scan --max-results 10
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.KEY_LEAK_DETECTOR }}
       
       - name: Upload scan report
         uses: actions/upload-artifact@v4
