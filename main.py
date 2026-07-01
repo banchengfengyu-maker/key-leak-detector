@@ -67,14 +67,13 @@ def scan(ctx, query, max_results):
             
             progress.update(task, description=f"扫描完成，发现 {len(results)} 个潜在泄露")
         
-        if not results:
-            console.print("[yellow]未发现API密钥泄露[/yellow]")
-            return
-        
         # 显示结果
-        display_results(results)
+        if results:
+            display_results(results)
+        else:
+            console.print("[yellow]未发现API密钥泄露[/yellow]")
         
-        # 保存报告
+        # 保存报告（无论是否找到结果都保存）
         save_report(config, results)
         
     except Exception as e:

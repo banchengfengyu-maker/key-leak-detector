@@ -3,9 +3,6 @@ name: Key Leak Scanner
 on:
   workflow_dispatch:
 
-env:
-  PYTHON_VERSION: '3.11'
-
 jobs:
   scan:
     name: Scan for API Key Leaks
@@ -21,32 +18,35 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: '3.11'
       
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
-      - name: Create reports directory
-        run: mkdir -p reports
-      
       - name: Run scanner
         run: python main.py scan --max-results 10
         env:
           GITHUB_TOKEN: ${{ secrets.KEY_LEAK_DETECTOR }}
       
-      - name: Show results
+      - name: List reports
         if: always()
         run: |
-          echo "=== Reports ==="
-          ls -la reports/ 2>/dev/null || echo "No reports dir"
-          cat reports/*.json 2>/dev/null || echo "No reports"
+          echo "=== Reports Directory ==="
+          ls -la reports/ 2>/dev/null || echo "Directory not found"
+          echo ""
+          echo "=== Report Files ==="
+          find reports/ -name "*.json" -type f 2>/dev/null || echo "No JSON files"
+          echo ""
+          echo "=== Report Content ==="
+          cat reports/scan_report_*.json 2>/dev/null || echo "No reports to show"
       
       - name: Upload report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: scan-report
-          path: reports/
+          name: scan-report-${{ github.run_number }}
+          path: reports/*.json
+          if-no-files-found: ignore
           retention-days: 7
