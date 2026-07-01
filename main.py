@@ -188,6 +188,7 @@ def save_report(config, results):
         json.dump(results, f, indent=2, ensure_ascii=False)
     
     console.print(f"[green]报告已保存到: {report_file}[/green]")
+    console.print(f"[blue]扫描结果: 发现 {len(results)} 个潜在泄露[/blue]")
 
 if __name__ == '__main__':
     cli()

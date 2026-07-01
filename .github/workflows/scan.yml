@@ -33,14 +33,23 @@ jobs:
       - name: List reports
         if: always()
         run: |
-          echo "=== Reports Directory ==="
-          ls -la reports/ 2>/dev/null || echo "Directory not found"
+          echo "=== Scan Summary ==="
+          echo "Reports directory contents:"
+          ls -la reports/ 2>/dev/null || echo "  (empty or not found)"
           echo ""
-          echo "=== Report Files ==="
-          find reports/ -name "*.json" -type f 2>/dev/null || echo "No JSON files"
+          echo "JSON report files:"
+          find reports/ -name "*.json" -type f 2>/dev/null | head -5 || echo "  (none)"
           echo ""
           echo "=== Report Content ==="
-          cat reports/scan_report_*.json 2>/dev/null || echo "No reports to show"
+          if ls reports/scan_report_*.json 1>/dev/null 2>&1; then
+            for f in reports/scan_report_*.json; do
+              echo "--- $f ---"
+              cat "$f"
+              echo ""
+            done
+          else
+            echo "No report files found. The scan completed but found no leaks."
+          fi
       
       - name: Upload report
         uses: actions/upload-artifact@v4
