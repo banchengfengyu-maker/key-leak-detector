@@ -52,23 +52,22 @@ class KeyPatterns:
     # AWS密钥模式
     AWS_ACCESS_KEY = KeyPattern(
         name="aws_access_key",
-        pattern=r'(?<![A-Za-z0-9/+=])[A-Za-z0-9/+=]{20}(?![A-Za-z0-9/+=])',
+        pattern=r'AKIA[0-9A-Z]{16}',
         description="AWS Access Key ID",
         severity="critical",
         examples=[
             "AKIASAMPLE1234567890",
-            "AKIASAMPLE1234567890"
+            "AKIAIOSFODNN7EXAMPLE"
         ]
     )
     
     AWS_SECRET_KEY = KeyPattern(
         name="aws_secret_key",
-        pattern=r'(?<![A-Za-z0-9/+=])[A-Za-z0-9/+=]{40}(?![A-Za-z0-9/+=])',
+        pattern=r'(?i)(?:aws_secret_access_key|aws_secret_key|secret_key)\s*[=:]\s*["\']?([A-Za-z0-9/+=]{40})["\']?',
         description="AWS Secret Access Key",
         severity="critical",
         examples=[
-            "SAMPLE12345678901234567890123456789012345678",
-            "SAMPLE12345678901234567890123456789012345678"
+            "aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
         ]
     )
     
@@ -127,7 +126,7 @@ class KeyPatterns:
     # GitHub令牌模式
     GITHUB_TOKEN = KeyPattern(
         name="github_token",
-        pattern=r'(?i)(?:github_token|gh_token|access_token)\s*[=:]\s*["\']?(ghp_[A-Za-z0-9]{36}|gho_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{82})["\']?',
+        pattern=r'(?i)(?:(?:github_token|gh_token|access_token)\s*[=:]\s*["\']?)?(ghp_[A-Za-z0-9]{36}|gho_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{82})',
         description="GitHub Personal Access Token",
         severity="critical",
         examples=[
@@ -193,7 +192,7 @@ class KeyPatterns:
     # 第三方服务密钥模式
     STRIPE_KEY = KeyPattern(
         name="stripe_key",
-        pattern=r'(?i)(?:stripe_key|stripe_secret|stripe_api_key)\s*[=:]\s*["\']?(sk_live_[A-Za-z0-9]{24,}|sk_test_[A-Za-z0-9]{24,})["\']?',
+        pattern=r'(?i)(?:(?:stripe_key|stripe_secret|stripe_api_key)\s*[=:]\s*["\']?)?(sk_live_[A-Za-z0-9]{24,}|sk_test_[A-Za-z0-9]{24,})',
         description="Stripe API Key",
         severity="critical",
         examples=[

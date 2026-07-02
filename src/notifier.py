@@ -29,6 +29,7 @@ class Notifier:
         self.config = config
         self.notification_config = config.get('notification', {})
         self.enabled_methods = self.notification_config.get('enabled_methods', [])
+        self.require_manual_review = self.notification_config.get('require_manual_review', True)
         
         # 初始化GitHub客户端
         self.github_client = GitHubClient(config['github']['token'])
@@ -47,6 +48,16 @@ class Notifier:
         
         for result in results:
             try:
+                if self.require_manual_review and not result.get('approved_for_notification'):
+                    logger.info(
+                        "结果未通过人工批准，跳过主动通知: %s/%s",
+                        result.get('repo_name', ''),
+                        result.get('file_path', '')
+                    )
+                    if 'report_only' in self.enabled_methods:
+                        notified_count += 1
+                    continue
+
                 # GitHub Issue通知
                 if 'github_issue' in self.enabled_methods:
                     if self.notify_github_issue(result):

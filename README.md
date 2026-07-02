@@ -75,11 +75,25 @@ SMTP_PASSWORD=your_app_password
 # 使用默认配置扫描
 python main.py scan
 
+# 快速发现候选文件，只保存项目地址和文件地址
+python main.py discover --query "sk_live_" --max-results 20
+
+# 默认优先走网页搜索，不占GitHub Search API额度，当前优先 Bing，偏向找 .env / config / secret 线索
+
+# 如需查看文档、测试目录等被排除的搜索结果
+python main.py discover --query "sk_live_" --max-results 20 --include-excluded
+
 # 自定义搜索查询
 python main.py scan --query "AKIA"
 
 # 限制最大结果数
 python main.py scan --max-results 50
+
+# 人工复核后批准某条结果用于通知
+python main.py approve reports/scan_report_20240101_120000.json --fingerprint abc123def456
+
+# 只会通知已批准的结果
+python main.py notify reports/scan_report_20240101_120000.json
 ```
 
 ## 配置说明
@@ -93,6 +107,16 @@ github:
   token: "${GITHUB_TOKEN}"  # 从环境变量读取
   search:
     max_repositories: 1000
+    queries:
+      - '"ghp_"'
+      - '"github_pat_"'
+      - '"sk_live_"'
+      - '"AKIA"'
+    per_query_limit: 2
+    max_candidates_per_query: 5
+    per_page: 5
+    state_file: "reports/scan_state.json"
+    cooldown_days: 30
     languages: []
     time_range_days: 30
 ```
@@ -118,6 +142,7 @@ detection:
 
 ```yaml
 notification:
+  require_manual_review: true
   enabled_methods:
     - github_issue
     - email
@@ -140,7 +165,7 @@ notification:
 
 在仓库的 Settings -> Secrets and variables -> Actions 中添加：
 
-- `GITHUB_TOKEN`：GitHub Personal Access Token
+- `KEY_LEAK_DETECTOR`：GitHub Personal Access Token
 - `SMTP_HOST`：SMTP服务器地址（可选）
 - `SMTP_USER`：SMTP用户名（可选）
 - `SMTP_PASSWORD`：SMTP密码（可选）
@@ -151,13 +176,18 @@ notification:
 
 ### 4. 自动运行
 
-工作流会每天UTC时间02:00自动运行。
+当前工作流默认手动触发。如果需要定时运行，可以在 `.github/workflows/scan.yml` 中添加 `schedule`。
 
 ## 命令行工具
 
 ### 扫描命令
 
 ```bash
+# 快速发现候选文件，不拉取文件内容
+python main.py discover --query "github_pat_" --max-results 20
+
+# 如果你有自建SearXNG，把 config.yaml 里的 discovery.web_provider 改成 searxng 并填写 web_base_url
+
 # 扫描并生成报告
 python main.py scan
 
@@ -171,7 +201,13 @@ python main.py scan --max-results 200
 ### 通知命令
 
 ```bash
-# 根据报告文件发送通知
+# 批准单条结果
+python main.py approve reports/scan_report_20240101_120000.json --fingerprint abc123def456
+
+# 批准所有 critical 结果
+python main.py approve reports/scan_report_20240101_120000.json --all-critical
+
+# 根据报告文件发送通知；未批准的结果只保留为报告，不会主动联系作者
 python main.py notify reports/scan_report_20240101_120000.json
 ```
 
@@ -213,6 +249,8 @@ key-leak-detector/
 2. **权限最小化**：只授予必要的API权限
 3. **定期轮换**：定期更换GitHub Token
 4. **监控使用**：监控API使用情况，防止滥用
+5. **人工复核**：默认不会自动发送Issue或邮件，必须先批准报告结果
+6. **脱敏报告**：报告只保存脱敏内容和指纹，不保存完整密钥
 
 ## 误报处理
 

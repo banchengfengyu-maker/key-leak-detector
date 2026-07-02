@@ -61,13 +61,16 @@ class GitHubClient:
         self.last_request_time = 0
         self.min_request_interval = 1  # 最小请求间隔（秒）
     
-    def _wait_for_rate_limit(self):
+    def _wait_for_rate_limit(self, min_interval: float = None):
         """等待速率限制"""
+        if min_interval is None:
+            min_interval = self.min_request_interval
+
         current_time = time.time()
         time_since_last_request = current_time - self.last_request_time
         
-        if time_since_last_request < self.min_request_interval:
-            wait_time = self.min_request_interval - time_since_last_request
+        wait_time = max(0, min_interval - time_since_last_request)
+        if wait_time > 0:
             time.sleep(wait_time)
         
         self.last_request_time = time.time()
@@ -84,7 +87,7 @@ class GitHubClient:
         Returns:
             搜索结果
         """
-        self._wait_for_rate_limit()
+        self._wait_for_rate_limit(6)
         
         url = f"{self.BASE_URL}/search/code"
         params = {
@@ -94,7 +97,10 @@ class GitHubClient:
         }
         
         try:
-            response = self.session.get(url, params=params)
+            headers = {
+                'Accept': 'application/vnd.github.text-match+json'
+            }
+            response = self.session.get(url, params=params, headers=headers)
             response.raise_for_status()
             
             # 检查速率限制
@@ -102,9 +108,11 @@ class GitHubClient:
             if remaining < 10:
                 reset_time = int(response.headers.get('X-RateLimit-Reset', 0))
                 wait_time = max(0, reset_time - time.time())
-                if wait_time > 0:
+                if wait_time > 0 and wait_time <= 30:
                     logger.warning(f"接近速率限制，等待 {wait_time} 秒")
                     time.sleep(wait_time)
+                elif wait_time > 30:
+                    logger.warning("接近速率限制，跳过长时间等待，剩余重置时间: %s 秒", int(wait_time))
             
             return response.json()
             
@@ -112,44 +120,40 @@ class GitHubClient:
             logger.error(f"搜索代码失败: {e}")
             raise
     
-    def get_file_content(self, repo_name: str, file_path: str) -> Optional[str]:
+    def get_file_content(self, repo_name: str, file_path: str, branch: str = None) -> Optional[str]:
         """
-        获取文件内容
+        获取文件内容（使用raw.githubusercontent.com，无速率限制）
         
         Args:
             repo_name: 仓库名称（格式：owner/repo）
             file_path: 文件路径
+            branch: 分支名称（可选，会自动尝试main和master）
             
         Returns:
             文件内容，如果获取失败返回None
         """
-        self._wait_for_rate_limit()
+        # 尝试的分支列表。Search API结果通常包含默认分支，优先使用它。
+        branches = []
+        if branch:
+            branches.append(branch)
+        branches.extend(['main', 'master'])
+        branches = list(dict.fromkeys(branches))
         
-        url = f"{self.BASE_URL}/repos/{repo_name}/contents/{file_path}"
-        
-        try:
-            response = self.session.get(url)
+        for br in branches:
+            raw_url = f"https://raw.githubusercontent.com/{repo_name}/{br}/{file_path}"
             
-            if response.status_code == 404:
-                logger.warning(f"文件不存在: {repo_name}/{file_path}")
-                return None
-            
-            response.raise_for_status()
-            
-            content_data = response.json()
-            
-            # 解码文件内容
-            if 'content' in content_data:
-                import base64
-                content = base64.b64decode(content_data['content']).decode('utf-8')
-                return content
-            else:
-                logger.warning(f"无法获取文件内容: {repo_name}/{file_path}")
-                return None
+            try:
+                response = requests.get(raw_url, timeout=10)
                 
-        except requests.exceptions.RequestException as e:
-            logger.error(f"获取文件内容失败: {e}")
-            return None
+                if response.status_code == 200:
+                    return response.text
+                    
+            except requests.exceptions.RequestException as e:
+                logger.debug(f"下载文件失败 {raw_url}: {e}")
+                continue
+        
+        logger.warning(f"无法获取文件内容: {repo_name}/{file_path}")
+        return None
     
     def get_user_info(self, username: str) -> Optional[Dict[str, Any]]:
         """
